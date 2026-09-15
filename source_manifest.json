@@ -1,0 +1,19 @@
+{
+  "questions": 130,
+  "uniqueStudyNumbers": 130,
+  "uniqueOriginalNumbers": 130,
+  "pptxSlides": 93,
+  "questionsWithoutDirectRelatedSlide": [
+    109,
+    110,
+    115,
+    116,
+    24,
+    25,
+    39,
+    40
+  ],
+  "problemSource": "KT用語集_学習順再編_問題版.pdf",
+  "answerSource": "Kt回答.pdf / KT用語集_学習順再編_解答版.pdf",
+  "explanationSource": "Kt用語集.pptx"
+}

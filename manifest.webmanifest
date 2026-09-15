@@ -1,0 +1,14 @@
+{
+  "name": "KT 一問一答｜経済・投資理論",
+  "short_name": "KT一問一答",
+  "description": "アクチュアリー経済・投資理論の公式130問を学習順に復習するPWA",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f172a",
+  "icons": [
+    {"src":"assets/icons/icon-192.png","sizes":"192x192","type":"image/png"},
+    {"src":"assets/icons/icon-512.png","sizes":"512x512","type":"image/png"}
+  ]
+}

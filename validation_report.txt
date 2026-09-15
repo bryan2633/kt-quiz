@@ -1,0 +1,7 @@
+KT 一問一答 PWA validation
+- Questions: 130
+- Study numbers: 1..130 unique: True
+- Original numbers: 1..130 unique: True
+- Answers non-empty: True
+- PowerPoint slides rendered: 93
+- No direct related slide set for original numbers: [109, 110, 115, 116, 24, 25, 39, 40]
