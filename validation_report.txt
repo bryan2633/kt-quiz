@@ -1,7 +1,11 @@
-KT 一問一答 PWA validation
+KT 一問一答 PWA v2 validation
 - Questions: 130
 - Study numbers: 1..130 unique: True
 - Original numbers: 1..130 unique: True
 - Answers non-empty: True
+- Corrected v1 transcription for original (116): 抑制
 - PowerPoint slides rendered: 93
 - No direct related slide set for original numbers: [109, 110, 115, 116, 24, 25, 39, 40]
+- v2 UI IDs referenced by JavaScript: all present in index.html
+- app.js syntax check: passed
+- Added: question doubt entry, doubt list, open/resolved status, question/PPT links, JSON backup export

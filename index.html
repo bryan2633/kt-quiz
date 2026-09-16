@@ -81,6 +81,21 @@
           <div class="answer-caption">公式解答</div>
           <div id="officialAnswer" class="official-answer"></div>
           <div id="inputCompare" class="input-compare"></div>
+        <section class="doubt-compose" aria-labelledby="doubtComposeTitle">
+          <div class="doubt-compose-head">
+            <div>
+              <div class="answer-caption">学習メモ</div>
+              <h3 id="doubtComposeTitle">疑問を記録する</h3>
+            </div>
+            <span id="currentDoubtCount" class="doubt-count-pill">0件</span>
+          </div>
+          <textarea id="doubtInput" class="doubt-input" rows="3" placeholder="例：なぜこの場合は信用乗数が小さくなるのか？"></textarea>
+          <div class="doubt-compose-actions">
+            <button id="saveDoubtBtn" class="secondary" type="button">未解決の疑問として保存</button>
+            <span>保存した疑問は「疑問」ページでまとめて確認できます。</span>
+          </div>
+          <div id="currentDoubts" class="current-doubts"></div>
+        </section>
           <div class="rating-title">自己評価</div>
           <div class="rating-row">
             <button data-rating="good" class="rate good" type="button">○ できた</button>
@@ -89,6 +104,7 @@
           </div>
           <button id="explainBtn" class="secondary full" type="button">PowerPointの関連解説を見る</button>
         </div>
+
       </article>
 
       <div class="question-nav">
@@ -112,12 +128,37 @@
       <div id="questionList" class="question-list"></div>
     </section>
 
+    <section id="doubtsView" class="view">
+      <div class="section-head sticky-head">
+        <div>
+          <h2>疑問一覧</h2>
+          <div id="doubtSummary" class="subtle-line"></div>
+        </div>
+        <button id="doubtsHomeBtn" class="ghost" type="button">ホーム</button>
+      </div>
+      <div class="filters doubt-filters card">
+        <input id="doubtSearchInput" placeholder="疑問・問題文・解答で検索" />
+        <select id="doubtThemeFilter"><option value="all">全テーマ</option></select>
+        <select id="doubtStatusFilter">
+          <option value="all">未解決・解決済み</option>
+          <option value="open">未解決</option>
+          <option value="resolved">解決済み</option>
+        </select>
+      </div>
+      <div id="doubtList" class="doubt-list"></div>
+    </section>
+
     <section id="progressView" class="view">
       <div class="section-head sticky-head">
         <h2>進捗</h2>
         <button id="progressHomeBtn" class="ghost" type="button">ホーム</button>
       </div>
       <div id="progressSummary" class="progress-summary"></div>
+      <div class="card backup-zone">
+        <h3>バックアップ</h3>
+        <p>学習進捗・最終学習位置・疑問メモを1つのJSONファイルに書き出します。iPhoneでは共有シートから「ファイルに保存」などを選べます。</p>
+        <button id="exportBackupBtn" class="secondary" type="button">バックアップを書き出す</button>
+      </div>
       <div class="card danger-zone">
         <h3>学習履歴</h3>
         <p>この端末の保存データのみを削除します。問題・解答データは消えません。</p>
@@ -129,6 +170,7 @@
   <nav class="bottom-nav" aria-label="メインナビゲーション">
     <button data-view="homeView" class="nav-btn active" type="button">学習</button>
     <button data-view="listView" class="nav-btn" type="button">一覧</button>
+    <button data-view="doubtsView" class="nav-btn doubts-nav" type="button"><span>疑問</span><span id="doubtsNavBadge" class="nav-badge hidden">0</span></button>
     <button data-view="progressView" class="nav-btn" type="button">進捗</button>
   </nav>
 

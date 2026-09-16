@@ -1,7 +1,7 @@
 {
   "name": "KT 一問一答｜経済・投資理論",
   "short_name": "KT一問一答",
-  "description": "アクチュアリー経済・投資理論の公式130問を学習順に復習するPWA",
+  "description": "アクチュアリー経済・投資理論の公式130問を学習順に復習し、疑問メモを管理できるPWA",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
