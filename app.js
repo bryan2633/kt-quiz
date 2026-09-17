@@ -6,7 +6,7 @@
   const STATE_KEY = 'kt-quiz-state-v1';
   const DOUBT_KEY = 'kt-quiz-doubts-v2';
   const REVIEW_KEY = 'kt-quiz-review-v3';
-  const APP_VERSION = '3.0.0';
+  const APP_VERSION = '4.0.0';
 
   let progress = loadJSON(STORE_KEY, {});
   let appState = loadJSON(STATE_KEY, { lastStudyNumber: 1 });
@@ -548,15 +548,48 @@
   function renderProgress(){
     const summary=$('progressSummary');
     summary.innerHTML='';
-    const make=(name,qs)=>{
+
+    const pieGradient=(counts,total)=>{
+      if(!total) return 'conic-gradient(#e2e8f0 0 100%)';
+      const good=counts.good/total*100;
+      const meh=counts.meh/total*100;
+      const bad=counts.bad/total*100;
+      const a=good;
+      const b=a+meh;
+      const c=b+bad;
+      return `conic-gradient(var(--good) 0 ${a}%, var(--meh) ${a}% ${b}%, var(--bad) ${b}% ${c}%, var(--unseen) ${c}% 100%)`;
+    };
+
+    const make=(name,qs,isOverall=false)=>{
       const counts={good:0,meh:0,bad:0,unseen:0};
       qs.forEach(q=>counts[statusFor(q)]++);
+      const total=qs.length;
+      const learned=total-counts.unseen;
+      const learnedPct=total ? Math.round(learned/total*100) : 0;
       const d=document.createElement('div');
-      d.className='progress-card';
-      d.innerHTML=`<h3>${esc(name)}</h3><div class="progress-bars"><div class="pstat"><strong>${counts.good}</strong><span>○ できた</span></div><div class="pstat"><strong>${counts.meh}</strong><span>△ 微妙</span></div><div class="pstat"><strong>${counts.bad}</strong><span>× できなかった</span></div><div class="pstat"><strong>${counts.unseen}</strong><span>未学習</span></div></div>`;
+      d.className=`progress-card${isOverall?' overall':''}`;
+      d.innerHTML=`
+        <div class="progress-card-head">
+          <div>
+            <h3>${esc(name)}</h3>
+            <div class="progress-subtitle">${learned} / ${total} 学習済み</div>
+          </div>
+          <div class="progress-percent">${learnedPct}%</div>
+        </div>
+        <div class="progress-visual">
+          <div class="progress-pie" role="img" aria-label="${esc(name)}の進捗円グラフ。できた${counts.good}、微妙${counts.meh}、できなかった${counts.bad}、未学習${counts.unseen}" style="--pie:${pieGradient(counts,total)}">
+            <div class="progress-pie-hole"><strong>${learnedPct}%</strong><span>学習済み</span></div>
+          </div>
+          <div class="progress-compact-stats">
+            <div class="progress-stat-chip good"><span class="progress-dot"></span><span>できた</span><strong>${counts.good}</strong></div>
+            <div class="progress-stat-chip meh"><span class="progress-dot"></span><span>微妙</span><strong>${counts.meh}</strong></div>
+            <div class="progress-stat-chip bad"><span class="progress-dot"></span><span>できなかった</span><strong>${counts.bad}</strong></div>
+            <div class="progress-stat-chip unseen"><span class="progress-dot"></span><span>未学習</span><strong>${counts.unseen}</strong></div>
+          </div>
+        </div>`;
       summary.appendChild(d);
     };
-    make('全体',DATA);
+    make('全体',DATA,true);
     THEMES.forEach(t=>make(t,DATA.filter(q=>q.theme===t)));
     renderReviewQueueProgress();
   }
