@@ -64,3 +64,20 @@ main{max-width:920px;margin:0 auto;padding:22px 16px 40px}.view{display:none}.vi
   .doubt-compose-actions{align-items:stretch}
   .doubt-compose-actions button{width:100%}
 }
+
+/* v3: テーマ別再開・間隔復習キュー */
+.review-summary-line{margin:-14px 0 24px;padding:12px 14px;color:var(--muted);font-size:12px;box-shadow:none}
+.theme-resume{margin-top:7px;font-size:12px;font-weight:800;color:var(--ink);background:var(--soft);display:inline-block;padding:4px 7px;border-radius:8px}
+.review-queue-card{margin-top:18px;padding:18px}
+.review-queue-card h3{margin:0 0 4px}
+.review-queue-card p{margin:0;color:var(--muted);font-size:13px}
+.review-queue-list{display:grid;gap:7px;margin-top:12px}
+.review-queue-row{display:grid;grid-template-columns:90px 120px 1fr 110px;gap:8px;align-items:center;padding:9px 10px;border:1px solid var(--line);border-radius:10px;font-size:12px}
+.review-queue-row.due{background:#fff7ed;border-color:#fed7aa}
+.review-queue-row.waiting{background:#f8fafc}
+.review-queue-row>span:first-child{font-weight:800}
+.review-empty,.review-more{margin-top:10px;color:var(--muted);font-size:12px}
+@media(max-width:700px){
+  .review-summary-line{margin-top:-16px}
+  .review-queue-row{grid-template-columns:1fr 1fr;gap:3px 8px}
+}

@@ -16,12 +16,14 @@
   "problemSource": "KT用語集_学習順再編_問題版.pdf",
   "answerSource": "Kt回答.pdf / KT用語集_学習順再編_解答版.pdf",
   "explanationSource": "Kt用語集.pptx",
-  "appVersion": "2.0.0",
+  "appVersion": "3.0.0",
   "features": [
     "question_doubt_entry",
     "doubt_list",
     "open_resolved_status",
     "question_and_powerpoint_links",
-    "json_backup_export"
+    "json_backup_export",
+    "theme_session_resume",
+    "persistent_spaced_review_queue"
   ]
 }

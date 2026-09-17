@@ -38,8 +38,9 @@
       <div class="action-grid">
         <button id="continueBtn" class="primary big" type="button">学習順で続ける</button>
         <button id="randomBtn" class="secondary big" type="button">ランダム出題</button>
-        <button id="reviewBtn" class="secondary big" type="button">△・×だけ復習</button>
+        <button id="reviewBtn" class="secondary big" type="button">未消化の復習（0件）</button>
       </div>
+      <div id="reviewSummary" class="review-summary-line card"></div>
 
       <section class="section-block">
         <div class="section-head">
@@ -154,14 +155,15 @@
         <button id="progressHomeBtn" class="ghost" type="button">ホーム</button>
       </div>
       <div id="progressSummary" class="progress-summary"></div>
+      <div id="reviewQueueProgress" class="card review-queue-card"></div>
       <div class="card backup-zone">
         <h3>バックアップ</h3>
-        <p>学習進捗・最終学習位置・疑問メモを1つのJSONファイルに書き出します。iPhoneでは共有シートから「ファイルに保存」などを選べます。</p>
+        <p>学習進捗・テーマ別の再開位置・未消化の復習キュー・疑問メモを1つのJSONファイルに書き出します。iPhoneでは共有シートから「ファイルに保存」などを選べます。</p>
         <button id="exportBackupBtn" class="secondary" type="button">バックアップを書き出す</button>
       </div>
       <div class="card danger-zone">
         <h3>学習履歴</h3>
-        <p>この端末の保存データのみを削除します。問題・解答データは消えません。</p>
+        <p>この端末の学習進捗・テーマ別の再開位置・復習キューを削除します。疑問メモと問題・解答データは消えません。</p>
         <button id="resetBtn" class="danger" type="button">進捗をリセット</button>
       </div>
     </section>

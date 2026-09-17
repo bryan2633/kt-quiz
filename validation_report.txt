@@ -1,11 +1,14 @@
-KT 一問一答 PWA v2 validation
+KT 一問一答 PWA v3 validation
 - Questions: 130
 - Study numbers: 1..130 unique: True
 - Original numbers: 1..130 unique: True
 - Answers non-empty: True
-- Corrected v1 transcription for original (116): 抑制
-- PowerPoint slides rendered: 93
-- No direct related slide set for original numbers: [109, 110, 115, 116, 24, 25, 39, 40]
-- v2 UI IDs referenced by JavaScript: all present in index.html
+- v1/v2 localStorage keys preserved for existing progress and doubts
+- v3 review queue stored separately in kt-quiz-review-v3
+- Theme resume positions stored in existing appState.sessionPositions
+- Review schedule: failed -> +1 day; pass -> +1 day; pass -> +5 days; pass -> completed
+- Overdue items remain due until passed
+- Current v2 questions rated bad are migrated into the review queue on first v3 launch
 - app.js syntax check: passed
-- Added: question doubt entry, doubt list, open/resolved status, question/PPT links, JSON backup export
+- sw.js syntax check: passed
+- JavaScript element IDs referenced: all present in index.html

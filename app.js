@@ -5,12 +5,16 @@
   const STORE_KEY = 'kt-quiz-progress-v1';
   const STATE_KEY = 'kt-quiz-state-v1';
   const DOUBT_KEY = 'kt-quiz-doubts-v2';
-  const APP_VERSION = '2.0.0';
+  const REVIEW_KEY = 'kt-quiz-review-v3';
+  const APP_VERSION = '3.0.0';
 
   let progress = loadJSON(STORE_KEY, {});
   let appState = loadJSON(STATE_KEY, { lastStudyNumber: 1 });
   let doubts = loadJSON(DOUBT_KEY, []);
   if (!Array.isArray(doubts)) doubts = [];
+  let reviewQueue = loadJSON(REVIEW_KEY, {});
+  if (!reviewQueue || Array.isArray(reviewQueue) || typeof reviewQueue !== 'object') reviewQueue = {};
+  if (!appState.sessionPositions || typeof appState.sessionPositions !== 'object') appState.sessionPositions = {};
 
   let session = [];
   let sessionIndex = 0;
@@ -18,6 +22,8 @@
   let currentSlideIndex = 0;
   let slideSourceQuestion = null;
   let deferredPrompt = null;
+  let activeSessionKey = null;
+  let activeSessionMode = 'normal';
 
   const $ = id => document.getElementById(id);
   const views = [...document.querySelectorAll('.view')];
@@ -38,6 +44,7 @@
     localStorage.setItem(STORE_KEY, JSON.stringify(progress));
     localStorage.setItem(STATE_KEY, JSON.stringify(appState));
     localStorage.setItem(DOUBT_KEY, JSON.stringify(doubts));
+    localStorage.setItem(REVIEW_KEY, JSON.stringify(reviewQueue));
     renderDoubtNavBadge();
   }
 
@@ -80,6 +87,112 @@
     }).format(d);
   }
 
+  function dateKey(date=new Date()){
+    const y=date.getFullYear();
+    const m=String(date.getMonth()+1).padStart(2,'0');
+    const d=String(date.getDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function dateKeyFromISO(iso){
+    const d=new Date(iso);
+    return Number.isNaN(d.getTime()) ? dateKey() : dateKey(d);
+  }
+
+  function addDaysKey(key,days){
+    const [y,m,d]=key.split('-').map(Number);
+    const dt=new Date(y,m-1,d);
+    dt.setDate(dt.getDate()+days);
+    return dateKey(dt);
+  }
+
+  function displayDateKey(key){
+    if(!key) return '';
+    const [y,m,d]=key.split('-').map(Number);
+    return `${m}/${d}`;
+  }
+
+  function themeSessionKey(theme,level){ return `theme:${theme}|level:${level}`; }
+
+  function savedSessionQuestion(sessionKey,qs){
+    if(!sessionKey) return null;
+    const n=appState.sessionPositions?.[sessionKey]?.studyNumber;
+    return qs.find(q=>q.studyNumber===Number(n)) || null;
+  }
+
+  function saveSessionPosition(q){
+    if(!activeSessionKey || !q) return;
+    if(!appState.sessionPositions) appState.sessionPositions={};
+    appState.sessionPositions[activeSessionKey]={studyNumber:q.studyNumber,updatedAt:new Date().toISOString()};
+  }
+
+  function clearSessionPosition(sessionKey){
+    if(!sessionKey || !appState.sessionPositions) return;
+    delete appState.sessionPositions[sessionKey];
+  }
+
+  function isReviewDue(entry){ return !!entry?.dueDate && entry.dueDate<=dateKey(); }
+  function dueReviewEntries(){ return Object.values(reviewQueue).filter(isReviewDue); }
+  function waitingReviewEntries(){ return Object.values(reviewQueue).filter(x=>!isReviewDue(x)); }
+  function reviewStageLabel(stage){ return ['翌日チェック','2日目チェック','1週間チェック'][stage] || '復習'; }
+
+  function queueFailure(q){
+    const now=new Date().toISOString();
+    const today=dateKey();
+    const existing=reviewQueue[q.studyNumber];
+    const wasDue=existing && isReviewDue(existing);
+    reviewQueue[q.studyNumber]={
+      studyNumber:q.studyNumber,
+      originalNumber:q.originalNumber,
+      firstFailedAt:existing?.firstFailedAt || now,
+      lastFailedAt:now,
+      stage:0,
+      // 期限到来後に再度×なら未消化のまま今日に残す。新規の×は翌日から復習。
+      dueDate:wasDue ? today : addDaysKey(today,1),
+      updatedAt:now
+    };
+  }
+
+  function advanceReviewIfDue(q){
+    const entry=reviewQueue[q.studyNumber];
+    if(!entry || !isReviewDue(entry)) return;
+    const now=new Date().toISOString();
+    if(entry.stage===0){
+      entry.stage=1;
+      entry.dueDate=addDaysKey(dateKey(),1);
+      entry.updatedAt=now;
+      return;
+    }
+    if(entry.stage===1){
+      entry.stage=2;
+      entry.dueDate=addDaysKey(dateKey(),5);
+      entry.updatedAt=now;
+      return;
+    }
+    delete reviewQueue[q.studyNumber];
+  }
+
+  function migrateCurrentBadProgress(){
+    let changed=false;
+    DATA.forEach(q=>{
+      const p=progress[q.studyNumber];
+      if(p?.rating!=='bad' || reviewQueue[q.studyNumber]) return;
+      const failedAt=p.lastSeen || new Date().toISOString();
+      const failDate=dateKeyFromISO(failedAt);
+      reviewQueue[q.studyNumber]={
+        studyNumber:q.studyNumber,
+        originalNumber:q.originalNumber,
+        firstFailedAt:failedAt,
+        lastFailedAt:failedAt,
+        stage:0,
+        dueDate:addDaysKey(failDate,1),
+        updatedAt:failedAt
+      };
+      changed=true;
+    });
+    if(changed) save();
+  }
+
   function showView(id){
     views.forEach(v => v.classList.toggle('active', v.id===id));
     navBtns.forEach(b => b.classList.toggle('active', b.dataset.view===id));
@@ -94,27 +207,45 @@
     const seen=DATA.filter(q=>statusFor(q)!=='unseen').length;
     $('doneCount').textContent=seen;
     $('progressBar').style.width=`${seen/DATA.length*100}%`;
+
+    const due=dueReviewEntries().length;
+    const waiting=waitingReviewEntries().length;
+    $('reviewBtn').textContent=`未消化の復習（${due}件）`;
+    $('reviewSummary').textContent=reviewQueue && Object.keys(reviewQueue).length
+      ? `復習キュー：今日・期限超過 ${due}件 / 待機中 ${waiting}件。×にした問題は、翌日→2日目→1週間の3回を○で通過するまで残ります。`
+      : '復習キュー：現在は空です。×にした問題は翌日から復習対象として記憶されます。';
+
     const level=$('levelFilterHome').value;
     $('themeGrid').innerHTML='';
     THEMES.forEach(theme=>{
       const qs=DATA.filter(q=>q.theme===theme && (level==='all'||q.level===level));
       if(!qs.length) return;
       const done=qs.filter(q=>statusFor(q)!=='unseen').length;
+      const key=themeSessionKey(theme,level);
+      const saved=savedSessionQuestion(key,qs);
+      const savedIdx=saved ? qs.findIndex(q=>q.studyNumber===saved.studyNumber) : -1;
+      const resumeMeta=saved ? `<div class="theme-resume">続き：${savedIdx+1} / ${qs.length}（学習順 ${String(saved.studyNumber).padStart(3,'0')}）</div>` : '';
       const b=document.createElement('button');
       b.className='theme-card';
       b.type='button';
-      b.innerHTML=`<div class="theme-name">${esc(theme)}</div><div class="theme-meta">${done} / ${qs.length} 学習済み</div><div class="mini-progress"><span style="width:${done/qs.length*100}%"></span></div>`;
-      b.addEventListener('click',()=>startSession(qs, `${theme}${level==='all'?'':` / ${level}`}`));
+      b.innerHTML=`<div class="theme-name">${esc(theme)}</div><div class="theme-meta">${done} / ${qs.length} 学習済み</div>${resumeMeta}<div class="mini-progress"><span style="width:${done/qs.length*100}%"></span></div>`;
+      b.addEventListener('click',()=>startSession(qs, `${theme}${level==='all'?'':` / ${level}`}`, null, key, true));
       $('themeGrid').appendChild(b);
     });
   }
 
-  function startSession(qs,label,startStudyNo=null){
+  function startSession(qs,label,startStudyNo=null,sessionKey=null,resumeSaved=false,mode='normal'){
     session=[...qs];
     if(!session.length){ alert('対象となる問題がありません。'); return; }
+    activeSessionKey=sessionKey;
+    activeSessionMode=mode;
     sessionIndex=0;
-    if(startStudyNo){
-      const idx=session.findIndex(q=>q.studyNumber===Number(startStudyNo));
+    let targetStudyNo=startStudyNo;
+    if(!targetStudyNo && resumeSaved && sessionKey){
+      targetStudyNo=appState.sessionPositions?.[sessionKey]?.studyNumber || null;
+    }
+    if(targetStudyNo){
+      const idx=session.findIndex(q=>q.studyNumber===Number(targetStudyNo));
       if(idx>=0) sessionIndex=idx;
     }
     $('sessionLabel').textContent=label;
@@ -126,6 +257,7 @@
     const q=currentQuestion();
     if(!q) return;
     appState.lastStudyNumber=q.studyNumber;
+    saveSessionPosition(q);
     save();
     $('studyNo').textContent=`学習順 ${String(q.studyNumber).padStart(3,'0')}`;
     $('origNo').textContent=`元(${q.originalNumber})`;
@@ -159,6 +291,11 @@
     if(!q) return;
     const p=progress[q.studyNumber] || {attempts:0};
     progress[q.studyNumber]={rating, attempts:(p.attempts||0)+1, lastSeen:new Date().toISOString()};
+
+    if(rating==='bad') queueFailure(q);
+    if(rating==='good') advanceReviewIfDue(q);
+    // △は復習キューの段階を進めない。期限到来済みなら未消化のまま残る。
+
     save();
     document.querySelectorAll('.rate').forEach(b=>b.classList.toggle('selected', b.dataset.rating===rating));
     setTimeout(()=>{
@@ -166,6 +303,10 @@
         sessionIndex++;
         renderQuestion();
       } else {
+        clearSessionPosition(activeSessionKey);
+        activeSessionKey=null;
+        activeSessionMode='normal';
+        save();
         showView('homeView');
       }
     },170);
@@ -417,6 +558,29 @@
     };
     make('全体',DATA);
     THEMES.forEach(t=>make(t,DATA.filter(q=>q.theme===t)));
+    renderReviewQueueProgress();
+  }
+
+  function renderReviewQueueProgress(){
+    const box=$('reviewQueueProgress');
+    if(!box) return;
+    const entries=Object.values(reviewQueue).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+    const due=entries.filter(isReviewDue);
+    const waiting=entries.filter(x=>!isReviewDue(x));
+    let html=`<h3>復習キュー</h3><p>今日・期限超過 <strong>${due.length}</strong>件 / 待機中 <strong>${waiting.length}</strong>件</p>`;
+    if(!entries.length){
+      html+='<div class="review-empty">現在、未消化の復習はありません。</div>';
+    } else {
+      html+='<div class="review-queue-list">';
+      entries.slice(0,12).forEach(e=>{
+        const q=questionForStudyNumber(e.studyNumber);
+        const dueClass=isReviewDue(e)?'due':'waiting';
+        html+=`<div class="review-queue-row ${dueClass}"><span>${isReviewDue(e)?'期限':'次回'} ${displayDateKey(e.dueDate)}</span><strong>学習順 ${String(e.studyNumber).padStart(3,'0')}</strong><span>${q?`元(${q.originalNumber})・${esc(q.theme)}`:''}</span><span>${reviewStageLabel(e.stage)}</span></div>`;
+      });
+      if(entries.length>12) html+=`<div class="review-more">ほか ${entries.length-12}件</div>`;
+      html+='</div>';
+    }
+    box.innerHTML=html;
   }
 
   // ---- Backup ----------------------------------------------------------------------------
@@ -428,7 +592,8 @@
       questionCount:DATA.length,
       progress,
       appState,
-      doubts
+      doubts,
+      reviewQueue
     };
   }
 
@@ -466,7 +631,16 @@
   // ---- Events ----------------------------------------------------------------------------
   $('continueBtn').addEventListener('click',()=>startSession(DATA,'学習順',appState.lastStudyNumber||1));
   $('randomBtn').addEventListener('click',()=>{const x=[...DATA].sort(()=>Math.random()-.5);startSession(x,'ランダム');});
-  $('reviewBtn').addEventListener('click',()=>startSession(DATA.filter(q=>['meh','bad'].includes(statusFor(q))),'△・× 復習'));
+  $('reviewBtn').addEventListener('click',()=>{
+    const dueSet=new Set(dueReviewEntries().map(e=>Number(e.studyNumber)));
+    const qs=DATA.filter(q=>dueSet.has(q.studyNumber)).sort((a,b)=>{
+      const da=reviewQueue[a.studyNumber]?.dueDate||'';
+      const db=reviewQueue[b.studyNumber]?.dueDate||'';
+      return da.localeCompare(db) || a.studyNumber-b.studyNumber;
+    });
+    if(!qs.length){ alert('今日または期限超過の未消化問題はありません。待機中の問題は期日になるとここに残り続けます。'); return; }
+    startSession(qs,'未消化の復習',null,null,false,'review');
+  });
   $('levelFilterHome').addEventListener('change',renderHome);
   $('backHomeBtn').addEventListener('click',()=>showView('homeView'));
   $('listHomeBtn').addEventListener('click',()=>showView('homeView'));
@@ -506,7 +680,8 @@
   $('resetBtn').addEventListener('click',()=>{
     if(confirm('学習進捗をリセットしますか？ 疑問メモは削除されません。')){
       progress={};
-      appState={lastStudyNumber:1};
+      reviewQueue={};
+      appState={lastStudyNumber:1,sessionPositions:{}};
       save();
       renderProgress();
     }
@@ -537,6 +712,7 @@
   });
   if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js');
 
+  migrateCurrentBadProgress();
   renderDoubtNavBadge();
   renderHome();
 })();
