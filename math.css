@@ -1,0 +1,593 @@
+.km-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 20px;
+  margin: 0 0 22px;
+  border: 1px solid #e1b6c4;
+  border-radius: 18px;
+  background: #fff7f8;
+  color: #721a36;
+  cursor: pointer;
+}
+.km-entry > span {
+  padding: 5px 11px;
+  border-radius: 8px;
+  background: #8b2144;
+  color: white;
+  font-size: 13px;
+}
+.km-entry strong {
+  font-size: 18px;
+}
+.km-entry small {
+  margin-left: auto;
+  color: #895365;
+}
+.km {
+  --accent: #862243;
+  --ink: #24232b;
+  --muted: #746f78;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: #faf8f6;
+  color: var(--ink);
+  font:
+    15px/1.65 -apple-system,
+    BlinkMacSystemFont,
+    "Noto Sans",
+    sans-serif;
+  overflow: hidden;
+}
+.km *,
+.km-lightbox *,
+.km-crop * {
+  box-sizing: border-box;
+}
+.km[open] {
+  display: flex;
+  flex-direction: column;
+}
+.km::backdrop {
+  background: #faf8f6;
+}
+.km button,
+.km input,
+.km textarea,
+.km select,
+.km-file,
+.km-crop button,
+.km-lightbox button {
+  font: inherit;
+}
+.km button,
+.km-file,
+.km-crop button,
+.km-lightbox button {
+  min-height: 44px;
+  border: 1px solid #ded8d6;
+  border-radius: 12px;
+  padding: 10px 15px;
+  background: white;
+  color: #312b31;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.km button:hover,
+.km-file:hover {
+  border-color: #ac6d83;
+}
+.km button:focus-visible,
+.km input:focus-visible,
+.km textarea:focus-visible,
+.km select:focus-visible {
+  outline: 3px solid #cb8da5;
+  outline-offset: 2px;
+}
+.km .km-primary {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.km .km-danger {
+  color: #a11c30;
+}
+.km-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 12px max(16px, calc((100vw - 820px) / 2));
+  background: #fff;
+  border-bottom: 1px solid #eae5e3;
+  flex-shrink: 0;
+}
+.km-header strong {
+  white-space: nowrap;
+}
+.km-header button {
+  font-size: 13px;
+  padding: 8px 12px;
+}
+.km-status {
+  font-size: 11px;
+  color: #71676c;
+  padding: 6px 18px;
+  text-align: right;
+  background: #f2eeec;
+  min-height: 30px;
+}
+.km-main {
+  max-width: 850px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 30px 24px 120px;
+  overflow: auto;
+  flex: 1;
+  -webkit-overflow-scrolling: touch;
+}
+.km-heading {
+  margin-bottom: 24px;
+}
+.km-eyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #9a5169;
+}
+.km h1 {
+  font-size: 28px;
+  line-height: 1.4;
+  letter-spacing: -0.035em;
+  margin: 10px 0 12px;
+}
+.km h2 {
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+.km p {
+  margin: 8px 0 14px;
+  color: var(--muted);
+}
+.km-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid #e4dcda;
+  border-radius: 18px;
+  background: white;
+  margin: 20px 0;
+  padding: 20px 5px;
+}
+.km-stats div {
+  text-align: center;
+  border-right: 1px solid #eee8e5;
+}
+.km-stats div:last-child {
+  border: 0;
+}
+.km-stats strong {
+  font-size: 32px;
+  display: block;
+  line-height: 1.2;
+  font-weight: 600;
+}
+.km-stats span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.km-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.km-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.km-between {
+  justify-content: space-between;
+}
+.km-section {
+  margin-top: 30px;
+}
+.km-section small {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.km-filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+.km input,
+.km textarea,
+.km select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d9d1cf;
+  background: white;
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 11px;
+  font-size: 16px;
+}
+.km-filters input {
+  flex: 1;
+}
+.km-filters select {
+  width: 125px;
+}
+.km-cardrow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  width: 100%;
+  gap: 7px;
+  margin: 9px 0;
+  padding: 16px !important;
+}
+.km-cardrow strong {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.km-cardrow > span:last-child {
+  color: var(--muted);
+  font-size: 12px;
+}
+.km-tag {
+  font-size: 11px;
+  background: #f5eeef;
+  color: #805064;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+.km-empty {
+  padding: 34px 20px;
+  text-align: center;
+  border: 1px dashed #d8c8c7;
+  border-radius: 16px;
+  background: #fff;
+}
+.km-empty b {
+  font-weight: 600;
+}
+.km-empty p {
+  font-size: 13px;
+}
+.km-addbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 22px calc(12px + env(safe-area-inset-bottom));
+  background: #faf8f6ed;
+  border-top: 1px solid #eae5e3;
+  display: flex;
+  justify-content: center;
+}
+.km-addbar button {
+  width: min(800px, 100%);
+}
+.km-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 20px 0 8px;
+}
+.km-label input,
+.km-label select,
+.km-label textarea {
+  display: block;
+  margin-top: 7px;
+  font-weight: 400;
+}
+.km textarea {
+  min-height: 100px;
+  resize: vertical;
+  line-height: 1.7;
+}
+.km-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.km-imagebox {
+  padding: 14px;
+  border: 1px dashed #cfc5c5;
+  border-radius: 12px;
+  background: #f3f0ed;
+  margin: 8px 0 24px;
+}
+.km-imagebox p {
+  font-size: 11px;
+  margin-bottom: 0;
+}
+.km-file {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px !important;
+}
+.km-file input {
+  display: none;
+}
+.km-thumbs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.km-thumb {
+  min-width: 0;
+  margin-top: 12px;
+}
+.km-thumb > button {
+  width: 100%;
+  padding: 3px;
+}
+.km-thumb img {
+  display: block;
+  max-width: 100%;
+  height: 120px;
+  object-fit: contain;
+  margin: auto;
+}
+.km-thumb .km-row {
+  margin-top: 5px;
+}
+.km-thumb .km-row button {
+  padding: 5px 8px;
+  font-size: 12px;
+  min-height: 36px;
+}
+.km details {
+  margin: 20px 0;
+  padding: 15px;
+  border: 1px solid #e4dcda;
+  border-radius: 12px;
+}
+.km summary {
+  cursor: pointer;
+}
+.km-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 24px 0;
+}
+.km-editor-actions .km-primary {
+  flex: 1;
+}
+.km-panel {
+  background: white;
+  border: 1px solid #e4dcda;
+  border-radius: 16px;
+  padding: 22px;
+  margin: 20px 0;
+}
+.km-panel p {
+  font-size: 13px;
+}
+.km-study {
+  margin-top: 24px;
+  padding: 24px;
+  background: white;
+  border: 1px solid #e4dcda;
+  border-radius: 18px;
+}
+.km-study h1 {
+  font-size: 24px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.km-studyimage {
+  display: block;
+  width: 100%;
+  padding: 5px !important;
+  margin: 12px 0;
+  background: #fff !important;
+}
+.km-studyimage img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: auto;
+}
+.km-answertext {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 20px;
+}
+.km-study hr {
+  border: 0;
+  border-top: 1px solid #e4dcda;
+  margin: 24px 0;
+}
+.km-study aside {
+  background: #faf4ee;
+  border-radius: 10px;
+  padding: 12px;
+  margin-top: 20px;
+  font-size: 13px;
+}
+.km-study aside p {
+  white-space: pre-wrap;
+  margin: 5px 0;
+}
+.km-source {
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+.km-studybar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px max(14px, calc((100vw - 802px) / 2))
+    calc(12px + env(safe-area-inset-bottom));
+  background: #faf8f6f5;
+  border-top: 1px solid #e4dcda;
+}
+.km-studybar #km-reveal button {
+  width: 100%;
+}
+.km #km-rating {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.km #km-rating button {
+  padding: 14px 4px;
+  font-size: 14px;
+  font-weight: 650;
+}
+.km #km-rating [data-action="rate-good"] {
+  color: #256349;
+}
+.km #km-rating [data-action="rate-meh"] {
+  color: #88641c;
+}
+.km #km-rating [data-action="rate-bad"] {
+  color: #9d294c;
+}
+.km [hidden] {
+  display: none !important;
+}
+.km-toast {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #30252bf2;
+  color: white;
+  border-radius: 12px;
+  padding: 12px 18px;
+  max-width: 90vw;
+  width: max-content;
+  font-size: 13px;
+  pointer-events: none;
+  z-index: 5;
+  box-shadow: 0 8px 30px #0002;
+}
+.km-toast:empty {
+  display: none;
+}
+.km-lightbox,
+.km-crop {
+  border: 0;
+  border-radius: 14px;
+  padding: 18px;
+  width: min(1000px, 96vw);
+  max-height: 94dvh;
+  overflow: auto;
+  background: white;
+  font:
+    14px/1.6 -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  color: #28242a;
+}
+.km-lightbox::backdrop,
+.km-crop::backdrop {
+  background: #1e172be6;
+}
+.km-lightbox > div {
+  overflow: auto;
+  max-height: 73dvh;
+}
+.km-lightbox img {
+  max-width: none;
+  display: block;
+}
+.km-lightbox p,
+.km-crop p {
+  color: #776e77;
+  font-size: 12px;
+}
+.km-crop {
+  width: min(700px, 96vw);
+}
+.km-cropstage {
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  margin: 15px auto;
+  width: fit-content;
+  max-width: 100%;
+}
+.km-cropstage img {
+  display: block;
+  max-width: 100%;
+  max-height: 60dvh;
+  width: auto;
+}
+.km-croprect {
+  display: none;
+  position: absolute;
+  border: 2px solid #8d2850;
+  background: #e092b233;
+  pointer-events: none;
+}
+.km-crop .km-row {
+  display: flex;
+  gap: 10px;
+}
+.km-crop button:disabled {
+  opacity: 0.4;
+}
+@media (max-width: 600px) {
+  .km-main {
+    padding: 22px 16px 125px;
+  }
+  .km h1 {
+    font-size: 25px;
+  }
+  .km-heading p {
+    font-size: 13px;
+  }
+  .km-header {
+    padding: 10px 12px;
+  }
+  .km-actions {
+    grid-template-columns: 1fr;
+  }
+  .km-stats {
+    padding: 17px 2px;
+  }
+  .km-stats strong {
+    font-size: 29px;
+  }
+  .km-study {
+    padding: 18px;
+  }
+  .km-study h1 {
+    font-size: 21px;
+  }
+  .km-two {
+    grid-template-columns: 1fr;
+  }
+  .km-panel {
+    padding: 16px;
+  }
+  .km-entry small {
+    margin-left: 0;
+    width: 100%;
+  }
+  .km-header strong {
+    font-size: 15px;
+  }
+}

@@ -1,3 +1,14 @@
+// v5 mathematics extension: existing index.html and KT data are retained.
+(() => {
+  const base = document.currentScript?.src || location.href;
+  const css = document.createElement('link');
+  css.rel = 'stylesheet'; css.href = new URL('./math.css', base).href;
+  document.head.appendChild(css);
+  const script = document.createElement('script');
+  script.src = new URL('./math.js', base).href;
+  script.onerror = () => { const node = document.getElementById('homeView'); if(node){ const p=document.createElement('p'); p.textContent='数学機能の読み込みに失敗しました。オンラインで再読み込みしてください。'; node.prepend(p); } };
+  document.head.appendChild(script);
+})();
 (() => {
   const DATA = window.KT_DATA || [];
   const THEMES = [...new Set(DATA.map(q => q.theme))];
@@ -6,7 +17,7 @@
   const STATE_KEY = 'kt-quiz-state-v1';
   const DOUBT_KEY = 'kt-quiz-doubts-v2';
   const REVIEW_KEY = 'kt-quiz-review-v3';
-  const APP_VERSION = '4.0.0';
+  const APP_VERSION = '5.0.0';
 
   let progress = loadJSON(STORE_KEY, {});
   let appState = loadJSON(STATE_KEY, { lastStudyNumber: 1 });
