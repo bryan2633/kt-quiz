@@ -16,7 +16,7 @@
   "problemSource": "KT用語集_学習順再編_問題版.pdf",
   "answerSource": "Kt回答.pdf / KT用語集_学習順再編_解答版.pdf",
   "explanationSource": "Kt用語集.pptx",
-  "appVersion": "5.0.0",
+  "appVersion": "5.1.0",
   "features": [
     "question_doubt_entry",
     "doubt_list",
@@ -31,7 +31,8 @@
     "math_draft",
     "math_spaced_review",
     "math_json_backup_import_export",
-    "math_optional_supabase_sync"
+    "math_optional_supabase_sync",
+    "kt_backup_import_with_local_rollback"
   ],
   "delivery": "Update files only; existing index.html, data.js and assets required",
   "syncStatus": "Connector implemented; requires user-owned Supabase project and setup"

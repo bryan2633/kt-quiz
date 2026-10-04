@@ -17,7 +17,7 @@
   const STATE_KEY = 'kt-quiz-state-v1';
   const DOUBT_KEY = 'kt-quiz-doubts-v2';
   const REVIEW_KEY = 'kt-quiz-review-v3';
-  const APP_VERSION = '5.0.0';
+  const APP_VERSION = '5.1.0';
 
   let progress = loadJSON(STORE_KEY, {});
   let appState = loadJSON(STATE_KEY, { lastStudyNumber: 1 });
@@ -759,4 +759,62 @@
   migrateCurrentBadProgress();
   renderDoubtNavBadge();
   renderHome();
+})();
+
+// v5.1: Import an existing KT backup, with a recoverable pre-import snapshot.
+(() => {
+  const exportButton = document.getElementById('exportBackupBtn');
+  if (!exportButton) return;
+  const keys = {progress:'kt-quiz-progress-v1', appState:'kt-quiz-state-v1', doubts:'kt-quiz-doubts-v2', reviewQueue:'kt-quiz-review-v3'};
+  const rollbackKey = 'kt-quiz-before-import-v5';
+  const questions = new Map((window.KT_DATA || []).map(q=>[String(q.studyNumber),q]));
+  const object = x => !!x && typeof x === 'object' && !Array.isArray(x);
+  const known = n => questions.has(String(n));
+  const date = x => typeof x === 'string' && !Number.isNaN(Date.parse(x));
+  function validate(data) {
+    if (!object(data) || data.format !== 'kt-quiz-backup' || !object(data.progress) || !object(data.appState) || !Array.isArray(data.doubts) || !object(data.reviewQueue)) throw new Error('KTのバックアップJSONを選択してください。数学専用バックアップはここでは読み込めません。');
+    for (const [n,p] of Object.entries(data.progress)) if (!known(n) || !object(p) || !['good','meh','bad','unseen'].includes(p.rating) || !Number.isInteger(p.attempts) || p.attempts<0 || !date(p.lastSeen)) throw new Error('学習記録の形式が正しくありません。スマホから書き出し直してください。');
+    for (const d of data.doubts) if (!object(d) || !known(d.studyNumber) || typeof d.id!=='string' || typeof d.text!=='string' || !['open','resolved'].includes(d.status)) throw new Error('疑問メモの形式が正しくありません。');
+    for (const [n,r] of Object.entries(data.reviewQueue)) if (!known(n) || !object(r) || String(r.studyNumber)!==n || !Number.isInteger(r.stage) || r.stage<0 || r.stage>2 || !/^\d{4}-\d{2}-\d{2}$/.test(r.dueDate) || !date(r.dueDate)) throw new Error('復習キューの形式が正しくありません。');
+    if (data.appState.lastStudyNumber != null && !known(data.appState.lastStudyNumber)) throw new Error('再開位置がこの問題集と一致しません。');
+    if (data.appState.sessionPositions != null) {
+      if (!object(data.appState.sessionPositions)) throw new Error('テーマ別再開位置の形式が正しくありません。');
+      for (const entry of Object.values(data.appState.sessionPositions)) if (!object(entry) || !known(entry.studyNumber)) throw new Error('テーマ別再開位置がこの問題集と一致しません。');
+    }
+    return data;
+  }
+  function currentBackup() {
+    const result = {format:'kt-quiz-backup', appVersion:'5.1.0', exportedAt:new Date().toISOString(), questionCount:questions.size};
+    for (const [field,key] of Object.entries(keys)) result[field]=JSON.parse(localStorage.getItem(key)|| (field==='doubts'?'[]':'{}'));
+    return result;
+  }
+  function write(data) {
+    const before = Object.fromEntries(Object.values(keys).map(key=>[key,localStorage.getItem(key)]));
+    try { for (const [field,key] of Object.entries(keys)) localStorage.setItem(key,JSON.stringify(data[field])); }
+    catch (e) { for(const [key,value] of Object.entries(before)) { if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,value); } throw e; }
+  }
+  const button = document.createElement('button');
+  button.type='button';button.className='secondary';button.id='importKTBackupBtn';button.textContent='スマホのKT記録を読み込む';button.style.margin='8px';
+  exportButton.insertAdjacentElement('afterend',button);
+  const input=document.createElement('input');input.type='file';input.id='importKTBackupInput';input.accept='.json,application/json';input.hidden=true;button.after(input);button.onclick=()=>{input.value='';input.click();};
+  input.onchange=async()=>{
+    const file=input.files[0];if(!file)return;
+    try {
+      if(file.size>10*1024*1024)throw new Error('KTのバックアップは10MB以下のJSONを選択してください。');
+      const data=validate(JSON.parse(await file.text()));
+      const dialog=document.createElement('dialog');dialog.className='km-crop';dialog.id='ktImportDialog';
+      const title=document.createElement('h2');title.textContent='スマホの記録をこの端末へ反映';
+      const details=document.createElement('p');details.style.whiteSpace='pre-line';details.textContent=`選択ファイル：${file.name}\n学習済み：${Object.values(data.progress).filter(p=>p.rating!=='unseen').length}問\n疑問メモ：${data.doubts.length}件\n未消化の復習：${Object.keys(data.reviewQueue).length}件\n書き出し日時：${date(data.exportedAt)?new Date(data.exportedAt).toLocaleString('ja-JP'):'不明'}`;
+      const note=document.createElement('p');note.textContent='この端末のKTの進捗・疑問メモ・復習キュー・再開位置を、選択した記録で置き換えます。元の記録は取り込み前バックアップとして端末に保管します。数学カードとスマホ側の記録は変更しません。';
+      const apply=document.createElement('button');apply.id='confirmKTImportBtn';apply.textContent='この記録を取り込む';
+      const cancel=document.createElement('button');cancel.textContent='キャンセル';cancel.style.marginLeft='8px';cancel.onclick=()=>dialog.close();
+      const error=document.createElement('p');error.setAttribute('role','alert');
+      apply.onclick=()=>{apply.disabled=true;try{localStorage.setItem(rollbackKey,JSON.stringify(currentBackup()));write(data);location.reload();}catch(e){apply.disabled=false;error.textContent='保存できませんでした。元の記録を保ったまま中止しました。空き容量などを確認してください。';}};
+      dialog.append(title,details,note,apply,cancel,error);document.body.append(dialog);dialog.addEventListener('close',()=>dialog.remove());dialog.showModal();
+    }catch(e){alert(e instanceof SyntaxError?'JSONを読み取れませんでした。スマホから書き出したファイルをそのまま選択してください。':e.message);}
+  };
+  if(localStorage.getItem(rollbackKey)) {
+    const restore=document.createElement('button');restore.id='restoreKTBackupBtn';restore.type='button';restore.className='ghost';restore.textContent='取り込み前のKT記録に戻す';restore.style.margin='8px';button.after(restore);
+    restore.onclick=()=>{if(!confirm('この端末のKT記録を、直前の取り込み前の状態に戻しますか？'))return;try{const data=validate(JSON.parse(localStorage.getItem(rollbackKey)));write(data);location.reload();}catch{alert('復元できませんでした。バックアップJSONからの読み込みをお試しください。');}};
+  }
 })();
