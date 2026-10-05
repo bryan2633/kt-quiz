@@ -591,3 +591,22 @@
     font-size: 15px;
   }
 }
+
+.km-entries {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.km-entries .km-entry {
+  min-width: 0;
+}
+.km-entry[data-subject="economy"] {
+  background: #fff7ec;
+  border-color: #d9bc8f;
+}
+@media (max-width: 600px) {
+  .km-entries {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}

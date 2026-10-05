@@ -17,7 +17,8 @@
   const STATE_KEY = 'kt-quiz-state-v1';
   const DOUBT_KEY = 'kt-quiz-doubts-v2';
   const REVIEW_KEY = 'kt-quiz-review-v3';
-  const APP_VERSION = '5.1.0';
+  const APP_VERSION = '5.3.0';
+  let suppressKTSync = false;
 
   let progress = loadJSON(STORE_KEY, {});
   let appState = loadJSON(STATE_KEY, { lastStudyNumber: 1 });
@@ -57,6 +58,7 @@
     localStorage.setItem(DOUBT_KEY, JSON.stringify(doubts));
     localStorage.setItem(REVIEW_KEY, JSON.stringify(reviewQueue));
     renderDoubtNavBadge();
+    if(!suppressKTSync) window.dispatchEvent(new Event('kt-state-saved'));
   }
 
   function statusFor(q){ return progress[q.studyNumber]?.rating || 'unseen'; }
@@ -268,6 +270,7 @@
     const q=currentQuestion();
     if(!q) return;
     appState.lastStudyNumber=q.studyNumber;
+    appState.lastStudyUpdatedAt=new Date().toISOString();
     saveSessionPosition(q);
     save();
     $('studyNo').textContent=`学習順 ${String(q.studyNumber).padStart(3,'0')}`;
@@ -722,7 +725,7 @@
   ['doubtSearchInput','doubtThemeFilter','doubtStatusFilter'].forEach(id=>$(id).addEventListener(id==='doubtSearchInput'?'input':'change',renderDoubts));
   $('exportBackupBtn').addEventListener('click',exportBackup);
   $('resetBtn').addEventListener('click',()=>{
-    if(confirm('学習進捗をリセットしますか？ 疑問メモは削除されません。')){
+    if(confirm('KTの学習進捗をリセットしますか？ 同期接続済みの場合は他の端末にも反映されます。疑問メモは削除されません。')){
       progress={};
       reviewQueue={};
       appState={lastStudyNumber:1,sessionPositions:{}};
@@ -741,6 +744,36 @@
     $('doubtThemeFilter').appendChild(d);
   });
 
+  // Shared KT data bridge. Applying cloud state must not generate a new local edit.
+  window.KT_BRIDGE={
+    snapshot:()=>JSON.parse(JSON.stringify({progress,appState,doubts,reviewQueue})),
+    apply:(next)=>{
+      const before={progress,appState,doubts,reviewQueue};
+      const previous=[STORE_KEY,STATE_KEY,DOUBT_KEY,REVIEW_KEY].map(k=>[k,localStorage.getItem(k)]);
+      suppressKTSync=true;
+      try{progress=next.progress;appState=next.appState;doubts=next.doubts;reviewQueue=next.reviewQueue;save();}
+      catch(error){({progress,appState,doubts,reviewQueue}=before);for(const [key,value] of previous){if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,value);}throw error;}
+      finally{suppressKTSync=false;}
+      renderHome();
+      if($('listView').classList.contains('active'))renderList();
+      if($('doubtsView').classList.contains('active'))renderDoubts();
+      if($('progressView').classList.contains('active'))renderProgress();
+      if($('studyView').classList.contains('active'))renderCurrentDoubts();
+    }
+  };
+  window.KT_BRIDGE.reloadLocal=()=>{
+    progress=loadJSON(STORE_KEY,{});appState=loadJSON(STATE_KEY,{lastStudyNumber:1,sessionPositions:{}});doubts=loadJSON(DOUBT_KEY,[]);reviewQueue=loadJSON(REVIEW_KEY,{});
+    renderHome();renderDoubtNavBadge();
+    if($('listView').classList.contains('active'))renderList();
+    if($('doubtsView').classList.contains('active'))renderDoubts();
+    if($('progressView').classList.contains('active'))renderProgress();
+  };
+  let storageRefresh;
+  window.addEventListener('storage',e=>{if([STORE_KEY,STATE_KEY,DOUBT_KEY,REVIEW_KEY].includes(e.key)){clearTimeout(storageRefresh);storageRefresh=setTimeout(()=>window.KT_BRIDGE.reloadLocal(),0);}});
+  const versionTag=document.createElement('small');versionTag.textContent='v'+APP_VERSION;versionTag.id='ktAppVersion';versionTag.style.cssText='font-size:11px;color:#64748b;margin-left:8px;white-space:nowrap';
+  document.querySelector('.appbar h1')?.append(versionTag);
+  const heroDescription=document.querySelector('#homeView .hero p');if(heroDescription)heroDescription.textContent='学習順番号と元番号を併記。進捗は端末に保存され、同期設定後はPC・スマホ間で共有できます。';
+  const resetDescription=$('resetBtn')?.closest('.danger-zone')?.querySelector('p');if(resetDescription)resetDescription.textContent='KTの進捗・再開位置・復習キューをリセットします。同期接続済みの場合は他の端末にも反映されます。疑問メモは残ります。';
   // PWA install
   window.addEventListener('beforeinstallprompt',e=>{
     e.preventDefault();
@@ -784,7 +817,7 @@
     return data;
   }
   function currentBackup() {
-    const result = {format:'kt-quiz-backup', appVersion:'5.1.0', exportedAt:new Date().toISOString(), questionCount:questions.size};
+    const result = {format:'kt-quiz-backup', appVersion:'5.3.0', exportedAt:new Date().toISOString(), questionCount:questions.size};
     for (const [field,key] of Object.entries(keys)) result[field]=JSON.parse(localStorage.getItem(key)|| (field==='doubts'?'[]':'{}'));
     return result;
   }
@@ -805,7 +838,7 @@
       const dialog=document.createElement('dialog');dialog.className='km-crop';dialog.id='ktImportDialog';
       const title=document.createElement('h2');title.textContent='スマホの記録をこの端末へ反映';
       const details=document.createElement('p');details.style.whiteSpace='pre-line';details.textContent=`選択ファイル：${file.name}\n学習済み：${Object.values(data.progress).filter(p=>p.rating!=='unseen').length}問\n疑問メモ：${data.doubts.length}件\n未消化の復習：${Object.keys(data.reviewQueue).length}件\n書き出し日時：${date(data.exportedAt)?new Date(data.exportedAt).toLocaleString('ja-JP'):'不明'}`;
-      const note=document.createElement('p');note.textContent='この端末のKTの進捗・疑問メモ・復習キュー・再開位置を、選択した記録で置き換えます。元の記録は取り込み前バックアップとして端末に保管します。数学カードとスマホ側の記録は変更しません。';
+      const note=document.createElement('p');note.textContent='この端末のKTの進捗・疑問メモ・復習キュー・再開位置を、選択した記録で置き換えます。元の記録は取り込み前バックアップとして端末に保管します。数学カードは変更しません。KT同期に接続済みの場合、この変更は他の端末にも反映されます。';
       const apply=document.createElement('button');apply.id='confirmKTImportBtn';apply.textContent='この記録を取り込む';
       const cancel=document.createElement('button');cancel.textContent='キャンセル';cancel.style.marginLeft='8px';cancel.onclick=()=>dialog.close();
       const error=document.createElement('p');error.setAttribute('role','alert');
@@ -815,6 +848,6 @@
   };
   if(localStorage.getItem(rollbackKey)) {
     const restore=document.createElement('button');restore.id='restoreKTBackupBtn';restore.type='button';restore.className='ghost';restore.textContent='取り込み前のKT記録に戻す';restore.style.margin='8px';button.after(restore);
-    restore.onclick=()=>{if(!confirm('この端末のKT記録を、直前の取り込み前の状態に戻しますか？'))return;try{const data=validate(JSON.parse(localStorage.getItem(rollbackKey)));write(data);location.reload();}catch{alert('復元できませんでした。バックアップJSONからの読み込みをお試しください。');}};
+    restore.onclick=()=>{if(!confirm('KT記録を直前の取り込み前の状態に戻しますか？ 同期接続済みの場合は他の端末にも反映されます。'))return;try{const data=validate(JSON.parse(localStorage.getItem(rollbackKey)));write(data);location.reload();}catch{alert('復元できませんでした。バックアップJSONからの読み込みをお試しください。');}};
   }
 })();

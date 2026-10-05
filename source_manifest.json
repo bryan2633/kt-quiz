@@ -16,7 +16,7 @@
   "problemSource": "KT用語集_学習順再編_問題版.pdf",
   "answerSource": "Kt回答.pdf / KT用語集_学習順再編_解答版.pdf",
   "explanationSource": "Kt用語集.pptx",
-  "appVersion": "5.1.0",
+  "appVersion": "5.3.0",
   "features": [
     "question_doubt_entry",
     "doubt_list",
@@ -32,8 +32,15 @@
     "math_spaced_review",
     "math_json_backup_import_export",
     "math_optional_supabase_sync",
-    "kt_backup_import_with_local_rollback"
+    "kt_backup_import_with_local_rollback",
+    "kt_per_question_cloud_sync",
+    "kt_conflict_resolution",
+    "shared_kt_math_sync_settings",
+    "visible_app_version",
+    "economy_text_image_cards",
+    "subject_isolated_custom_review",
+    "legacy_math_card_compatibility"
   ],
   "delivery": "Update files only; existing index.html, data.js and assets required",
-  "syncStatus": "Connector implemented; requires user-owned Supabase project and setup"
+  "syncStatus": "KT and mathematics connectors implemented; user-owned Supabase project and account required"
 }

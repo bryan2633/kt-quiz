@@ -1,4 +1,4 @@
-const CACHE = "kt-quiz-v5-math-2";
+const CACHE = "kt-quiz-v53-custom-1";
 const CORE = [
   "./",
   "./index.html",
