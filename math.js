@@ -447,6 +447,7 @@
   const due = (c) => !c.draft && !!c.review?.due && c.review.due <= today();
   async function refresh() {
     cards = await getAll();
+    window.KT_BRIDGE?.updateCustomCards(cards);
     await status();
   }
   async function status() {
@@ -840,10 +841,7 @@
     main.innerHTML = `<div class="km-row km-between">${button("home", "← カード一覧")}<span>${position + 1} / ${queue.length}</span></div><div class="km-study"><span class="km-tag">${esc(c.field)}${c.theme ? " · " + esc(c.theme) : ""}</span><h1>${esc(c.question || "画像の問いに答えてください")}</h1>${imageHTML(c, "q")}<div id="km-answer-panel" hidden><hr><span class="km-eyebrow">答え</span><div class="km-answertext">${esc(c.answer)}</div>${imageHTML(c, "a")}${c.note ? `<aside><b>間違えた理由</b><p>${esc(c.note)}</p></aside>` : ""}${c.source ? `<p class="km-source">出典：${esc(c.source)}</p>` : ""}</div></div><div class="km-studybar"><div id="km-reveal">${button("reveal", "答えを見る", "km-primary")}</div><div id="km-rating" hidden>${button("rate-good", "○ 思い出せた")}${button("rate-meh", "△ 曖昧")}${button("rate-bad", "× もう一度")}</div></div>`;
     main.scrollTop = 0;
   }
-  async function rate(rating) {
-    if (!revealed) return;
-    revealed = false;
-    const c = structuredClone(cards.find((x) => x.id === queue[position]));
+  function applyRating(c, rating) {
     const prior = c.review || {};
     const intervals = [1, 3, 7, 14, 30, 60];
     const step =
@@ -870,6 +868,12 @@
     c.history = [...(c.history || []), { rating, at: c.review.lastAt }].slice(
       -300,
     );
+  }
+  async function rate(rating) {
+    if (!revealed) return;
+    revealed = false;
+    const c = structuredClone(cards.find((x) => x.id === queue[position]));
+    applyRating(c, rating);
     try {
       await saveCard(c);
     } catch (e) {
@@ -1399,7 +1403,7 @@
     opener.className = "km-entry";
     opener.type = "button";
     opener.dataset.subject = key;
-    opener.innerHTML = `<span>${esc(subjects[key].label)}</span><strong>自分のカードで一問一答</strong><small>問い・答え・間違えた理由を登録 →</small>`;
+    opener.innerHTML = `<span>${esc(subjects[key].label)}</span><strong>${key === "economy" ? "自作問題を追加・編集" : "自分のカードで一問一答"}</strong><small>${key === "economy" ? "保存した問題は公式130問と一緒に出題 →" : "問い・答え・間違えた理由を登録 →"}</small>`;
     opener.onclick = guard(async () => {
       if (!leaveEditor()) return;
       subject = key;
@@ -1413,7 +1417,20 @@
     openers[key] = opener;
   }
   window.KT_MATH = { open: () => openers.math.click() };
-  window.KT_CUSTOM = { open: (key = "economy") => openers[key]?.click() };
+  window.KT_CUSTOM = {
+    open: (key = "economy") => openers[key]?.click(),
+    newEconomy: guard(async () => {subject="economy";filter="すべて";query="";if(!root.open)root.showModal();await home();await edit();}),
+    edit: guard(async id => {subject="economy";if(!root.open)root.showModal();await home();await edit(id);}),
+    zoom: src => zoom(src),
+    export: guard(exportFile),
+    rate: async (id, rating) => {
+      if(!["good","meh","bad"].includes(rating))throw new Error("評価が正しくありません。");
+      const c=(await getAll()).find(c=>c.id===id && c.subject==="economy" && !c.deleted && !c.draft);
+      if(!c)throw new Error("このカードは削除されたか、下書きに戻っています。");
+      applyRating(c,rating);await saveCard(c);
+    }
+  };
+  guard(refresh)();
   const syncButton = document.createElement("button");
   syncButton.id = "ktSyncButton";
   syncButton.className = "secondary";

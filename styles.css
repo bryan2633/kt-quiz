@@ -81,3 +81,9 @@ main{max-width:920px;margin:0 auto;padding:22px 16px 40px}.view{display:none}.vi
   .review-summary-line{margin-top:-16px}
   .review-queue-row{grid-template-columns:1fr 1fr;gap:3px 8px}
 }
+
+.kt-custom-image { display:block; padding:8px; margin:12px 0; max-width:100%; background:white; border:1px solid #ddd; border-radius:12px; }
+.kt-custom-image img {display:block;max-width:100%;height:auto;max-height:65vh;object-fit:contain;}
+.kt-custom-note {white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;background:#f8f5ef;border-radius:10px;}
+#editIntegratedCard {margin:10px 0;}
+[hidden] {display:none !important;}

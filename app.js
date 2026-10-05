@@ -10,14 +10,18 @@
   document.head.appendChild(script);
 })();
 (() => {
-  const DATA = window.KT_DATA || [];
-  const THEMES = [...new Set(DATA.map(q => q.theme))];
+  const ORIGINAL = window.KT_DATA || [];
+  let DATA = [...ORIGINAL];
+  let THEMES = [...new Set(DATA.map(q => q.theme))];
+  const customPositions = loadJSON('kt-custom-positions-v1', {});
+  const displayNo = q => String(q.displayNumber || q.studyNumber).padStart(3,'0');
+  const saveCustomPositions = () => localStorage.setItem('kt-custom-positions-v1', JSON.stringify(customPositions));
   // Keep the existing v1 keys so users upgrading from v1 retain their progress.
   const STORE_KEY = 'kt-quiz-progress-v1';
   const STATE_KEY = 'kt-quiz-state-v1';
   const DOUBT_KEY = 'kt-quiz-doubts-v2';
   const REVIEW_KEY = 'kt-quiz-review-v3';
-  const APP_VERSION = '5.3.0';
+  const APP_VERSION = '5.4.0';
   let suppressKTSync = false;
 
   let progress = loadJSON(STORE_KEY, {});
@@ -61,7 +65,7 @@
     if(!suppressKTSync) window.dispatchEvent(new Event('kt-state-saved'));
   }
 
-  function statusFor(q){ return progress[q.studyNumber]?.rating || 'unseen'; }
+  function statusFor(q){ return (q.custom ? q.card.review?.rating : progress[q.studyNumber]?.rating) || 'unseen'; }
   function esc(s){ return String(s ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
   function withBreaks(s){ return esc(s).replace(/\n/g, '<br>'); }
   function highlightTarget(question, n){
@@ -86,7 +90,7 @@
       : '表記差もあり得るため、公式解答と見比べて自己評価してください。';
   }
   function currentQuestion(){ return session[sessionIndex] || null; }
-  function questionForStudyNumber(studyNumber){ return DATA.find(q => q.studyNumber === Number(studyNumber)) || null; }
+  function questionForStudyNumber(studyNumber){ return DATA.find(q => String(q.studyNumber) === String(studyNumber)) || null; }
   function makeId(){
     if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
     return `d-${Date.now()}-${Math.random().toString(36).slice(2,10)}`;
@@ -129,12 +133,14 @@
 
   function savedSessionQuestion(sessionKey,qs){
     if(!sessionKey) return null;
-    const n=appState.sessionPositions?.[sessionKey]?.studyNumber;
-    return qs.find(q=>q.studyNumber===Number(n)) || null;
+    const n=customPositions[sessionKey] || appState.sessionPositions?.[sessionKey]?.studyNumber;
+    return qs.find(q=>String(q.studyNumber)===String(n)) || null;
   }
 
   function saveSessionPosition(q){
     if(!activeSessionKey || !q) return;
+    if(q.custom){customPositions[activeSessionKey]=q.studyNumber;saveCustomPositions();return;}
+    delete customPositions[activeSessionKey];saveCustomPositions();
     if(!appState.sessionPositions) appState.sessionPositions={};
     appState.sessionPositions[activeSessionKey]={studyNumber:q.studyNumber,updatedAt:new Date().toISOString()};
   }
@@ -142,11 +148,13 @@
   function clearSessionPosition(sessionKey){
     if(!sessionKey || !appState.sessionPositions) return;
     delete appState.sessionPositions[sessionKey];
+    delete customPositions[sessionKey];saveCustomPositions();
   }
 
   function isReviewDue(entry){ return !!entry?.dueDate && entry.dueDate<=dateKey(); }
-  function dueReviewEntries(){ return Object.values(reviewQueue).filter(isReviewDue); }
-  function waitingReviewEntries(){ return Object.values(reviewQueue).filter(x=>!isReviewDue(x)); }
+  const allReviewEntries = () => [...Object.values(reviewQueue), ...DATA.filter(q=>q.custom && q.card.review?.due).map(q=>({studyNumber:q.studyNumber,dueDate:q.card.review.due,custom:true}))];
+  function dueReviewEntries(){ return allReviewEntries().filter(isReviewDue); }
+  function waitingReviewEntries(){ return allReviewEntries().filter(x=>!isReviewDue(x)); }
   function reviewStageLabel(stage){ return ['翌日チェック','2日目チェック','1週間チェック'][stage] || '復習'; }
 
   function queueFailure(q){
@@ -219,13 +227,15 @@
   function renderHome(){
     const seen=DATA.filter(q=>statusFor(q)!=='unseen').length;
     $('doneCount').textContent=seen;
+    $('doneCount').nextElementSibling.textContent=`/ ${DATA.length} 学習済み`;
+    document.querySelector('#homeView .hero-kicker').textContent=`公式${ORIGINAL.length}問 ＋ 自作${DATA.length-ORIGINAL.length}問`;
     $('progressBar').style.width=`${seen/DATA.length*100}%`;
 
     const due=dueReviewEntries().length;
     const waiting=waitingReviewEntries().length;
     $('reviewBtn').textContent=`未消化の復習（${due}件）`;
-    $('reviewSummary').textContent=reviewQueue && Object.keys(reviewQueue).length
-      ? `復習キュー：今日・期限超過 ${due}件 / 待機中 ${waiting}件。×にした問題は、翌日→2日目→1週間の3回を○で通過するまで残ります。`
+    $('reviewSummary').textContent=allReviewEntries().length
+      ? `復習キュー：今日・期限超過 ${due}件 / 待機中 ${waiting}件。公式問題の×は翌日→2日目→1週間に復習。自作問題は○△×に応じた間隔で復習します。`
       : '復習キュー：現在は空です。×にした問題は翌日から復習対象として記憶されます。';
 
     const level=$('levelFilterHome').value;
@@ -237,7 +247,7 @@
       const key=themeSessionKey(theme,level);
       const saved=savedSessionQuestion(key,qs);
       const savedIdx=saved ? qs.findIndex(q=>q.studyNumber===saved.studyNumber) : -1;
-      const resumeMeta=saved ? `<div class="theme-resume">続き：${savedIdx+1} / ${qs.length}（学習順 ${String(saved.studyNumber).padStart(3,'0')}）</div>` : '';
+      const resumeMeta=saved ? `<div class="theme-resume">続き：${savedIdx+1} / ${qs.length}（学習順 ${displayNo(saved)}）</div>` : '';
       const b=document.createElement('button');
       b.className='theme-card';
       b.type='button';
@@ -255,10 +265,10 @@
     sessionIndex=0;
     let targetStudyNo=startStudyNo;
     if(!targetStudyNo && resumeSaved && sessionKey){
-      targetStudyNo=appState.sessionPositions?.[sessionKey]?.studyNumber || null;
+      targetStudyNo=customPositions[sessionKey] || appState.sessionPositions?.[sessionKey]?.studyNumber || null;
     }
     if(targetStudyNo){
-      const idx=session.findIndex(q=>q.studyNumber===Number(targetStudyNo));
+      const idx=session.findIndex(q=>String(q.studyNumber)===String(targetStudyNo));
       if(idx>=0) sessionIndex=idx;
     }
     $('sessionLabel').textContent=label;
@@ -269,16 +279,23 @@
   function renderQuestion(){
     const q=currentQuestion();
     if(!q) return;
-    appState.lastStudyNumber=q.studyNumber;
-    appState.lastStudyUpdatedAt=new Date().toISOString();
+    if(q.custom){customPositions.last=q.studyNumber;}else{delete customPositions.last;appState.lastStudyNumber=q.studyNumber;appState.lastStudyUpdatedAt=new Date().toISOString();}
+    saveCustomPositions();
     saveSessionPosition(q);
     save();
-    $('studyNo').textContent=`学習順 ${String(q.studyNumber).padStart(3,'0')}`;
-    $('origNo').textContent=`元(${q.originalNumber})`;
+    $('studyNo').textContent=`学習順 ${displayNo(q)}`;
+    $('origNo').textContent=q.custom?'自作':`元(${q.originalNumber})`;
+    $('levelPill').hidden=!!q.custom;
+    $('targetBlank').parentElement.hidden=!!q.custom;
+    $('explainBtn').hidden=!!q.custom;
+    document.querySelector('.doubt-compose').hidden=!!q.custom;
+    document.querySelector('#answerPanel > .answer-caption').textContent=q.custom?'答え':'公式解答';
+    $('editIntegratedCard').hidden=!q.custom;
     $('themePill').textContent=q.theme;
     $('levelPill').textContent=`${q.level} ${q.levelName}`;
     $('targetBlank').textContent=`（${q.originalNumber}）`;
-    $('questionText').innerHTML=highlightTarget(q.question,q.originalNumber);
+    $('questionText').innerHTML=q.custom?withBreaks(q.question):highlightTarget(q.question,q.originalNumber);
+    renderCustomMedia(q);
     $('answerInput').value='';
     $('doubtInput').value='';
     $('answerPanel').classList.add('hidden');
@@ -295,24 +312,32 @@
     const q=currentQuestion();
     if(!q) return;
     $('officialAnswer').textContent=q.answer;
-    $('inputCompare').textContent=compareInput($('answerInput').value,q.answer);
+    $('inputCompare').textContent=q.custom ? '答えと照らし合わせて、○△×で評価してください。' : compareInput($('answerInput').value,q.answer);
     $('answerPanel').classList.remove('hidden');
     renderCurrentDoubts();
   }
 
-  function rateCurrent(rating){
+  let ratingBusy=false;
+  async function rateCurrent(rating){
     const q=currentQuestion();
     if(!q) return;
+    if(ratingBusy || $('answerPanel').classList.contains('hidden'))return;
+    ratingBusy=true;
+    if(q.custom){
+      try{await window.KT_CUSTOM.rate(q.card.id,rating);}catch(e){ratingBusy=false;alert(e.message || '保存できませんでした');return;}
+    }else{
     const p=progress[q.studyNumber] || {attempts:0};
     progress[q.studyNumber]={rating, attempts:(p.attempts||0)+1, lastSeen:new Date().toISOString()};
 
     if(rating==='bad') queueFailure(q);
     if(rating==='good') advanceReviewIfDue(q);
     // △は復習キューの段階を進めない。期限到来済みなら未消化のまま残る。
+    }
 
     save();
     document.querySelectorAll('.rate').forEach(b=>b.classList.toggle('selected', b.dataset.rating===rating));
     setTimeout(()=>{
+      ratingBusy=false;
       if(sessionIndex<session.length-1){
         sessionIndex++;
         renderQuestion();
@@ -485,7 +510,7 @@
           <button class="ghost js-edit" type="button">編集</button>
           <button class="ghost js-delete" type="button">削除</button>
         </div>`;
-      card.querySelector('.js-open-question').addEventListener('click',()=>startSession(DATA,'全130問',d.studyNumber));
+      card.querySelector('.js-open-question').addEventListener('click',()=>startSession(DATA,`全${DATA.length}問`,d.studyNumber));
       card.querySelector('.js-open-slides').addEventListener('click',()=>{ if(q) openSlidesForQuestion(q); });
       card.querySelector('.js-toggle-status').addEventListener('click',()=>setDoubtStatus(d.id,d.status==='open'?'resolved':'open'));
       card.querySelector('.js-edit').addEventListener('click',()=>editDoubt(d.id));
@@ -541,8 +566,9 @@
     const theme=$('themeFilter').value;
     const level=$('levelFilter').value;
     const st=$('statusFilter').value;
+    document.querySelector('#listView h2').textContent=`問題一覧（${DATA.length}問）`;
     const qs=DATA.filter(q=>{
-      const hay=`${q.studyNumber} ${q.originalNumber} ${q.question} ${q.answer}`.toLowerCase();
+      const hay=`${q.studyNumber} ${q.originalNumber} ${q.question} ${q.answer} ${q.card?.note || ''} ${q.card?.theme || ''}`.toLowerCase();
       return (!search||hay.includes(search)) && (theme==='all'||q.theme===theme) && (level==='all'||q.level===level) && (st==='all'||statusFor(q)===st);
     });
     $('questionList').innerHTML='';
@@ -553,8 +579,8 @@
       const row=document.createElement('button');
       row.type='button';
       row.className='list-row';
-      row.innerHTML=`<div class="list-num">${String(q.studyNumber).padStart(3,'0')}</div><div class="list-body"><div class="list-q">${esc(q.question)}</div><div class="list-meta">元(${q.originalNumber})・${esc(q.theme)}・${q.level} ${q.levelName}${noteCount?`・未解決の疑問 ${noteCount}件`:''}</div></div><div class="status-dot ${s}">${symbol}</div>`;
-      row.addEventListener('click',()=>startSession(DATA,'全130問',q.studyNumber));
+      row.innerHTML=`<div class="list-num">${displayNo(q)}</div><div class="list-body"><div class="list-q">${esc(q.question)}</div><div class="list-meta">${q.custom?'自作':`元(${q.originalNumber})`}・${esc(q.theme)}${q.custom?'':`・${q.level} ${q.levelName}`}${noteCount?`・未解決の疑問 ${noteCount}件`:''}</div></div><div class="status-dot ${s}">${symbol}</div>`;
+      row.addEventListener('click',()=>startSession(DATA,`全${DATA.length}問`,q.studyNumber));
       $('questionList').appendChild(row);
     });
   }
@@ -611,7 +637,7 @@
   function renderReviewQueueProgress(){
     const box=$('reviewQueueProgress');
     if(!box) return;
-    const entries=Object.values(reviewQueue).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+    const entries=allReviewEntries().sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
     const due=entries.filter(isReviewDue);
     const waiting=entries.filter(x=>!isReviewDue(x));
     let html=`<h3>復習キュー</h3><p>今日・期限超過 <strong>${due.length}</strong>件 / 待機中 <strong>${waiting.length}</strong>件</p>`;
@@ -622,7 +648,7 @@
       entries.slice(0,12).forEach(e=>{
         const q=questionForStudyNumber(e.studyNumber);
         const dueClass=isReviewDue(e)?'due':'waiting';
-        html+=`<div class="review-queue-row ${dueClass}"><span>${isReviewDue(e)?'期限':'次回'} ${displayDateKey(e.dueDate)}</span><strong>学習順 ${String(e.studyNumber).padStart(3,'0')}</strong><span>${q?`元(${q.originalNumber})・${esc(q.theme)}`:''}</span><span>${reviewStageLabel(e.stage)}</span></div>`;
+        html+=`<div class="review-queue-row ${dueClass}"><span>${isReviewDue(e)?'期限':'次回'} ${displayDateKey(e.dueDate)}</span><strong>学習順 ${q?displayNo(q):esc(e.studyNumber)}</strong><span>${q?`${q.custom?'自作':`元(${q.originalNumber})`}・${esc(q.theme)}`:''}</span><span>${e.custom?'自作カードの復習':reviewStageLabel(e.stage)}</span></div>`;
       });
       if(entries.length>12) html+=`<div class="review-more">ほか ${entries.length-12}件</div>`;
       html+='</div>';
@@ -636,7 +662,7 @@
       format:'kt-quiz-backup',
       appVersion:APP_VERSION,
       exportedAt:new Date().toISOString(),
-      questionCount:DATA.length,
+      questionCount:ORIGINAL.length,
       progress,
       appState,
       doubts,
@@ -676,14 +702,14 @@
   }
 
   // ---- Events ----------------------------------------------------------------------------
-  $('continueBtn').addEventListener('click',()=>startSession(DATA,'学習順',appState.lastStudyNumber||1));
+  $('continueBtn').addEventListener('click',()=>startSession(DATA,'学習順',customPositions.last||appState.lastStudyNumber||1));
   $('randomBtn').addEventListener('click',()=>{const x=[...DATA].sort(()=>Math.random()-.5);startSession(x,'ランダム');});
   $('reviewBtn').addEventListener('click',()=>{
-    const dueSet=new Set(dueReviewEntries().map(e=>Number(e.studyNumber)));
-    const qs=DATA.filter(q=>dueSet.has(q.studyNumber)).sort((a,b)=>{
-      const da=reviewQueue[a.studyNumber]?.dueDate||'';
-      const db=reviewQueue[b.studyNumber]?.dueDate||'';
-      return da.localeCompare(db) || a.studyNumber-b.studyNumber;
+    const dueSet=new Set(dueReviewEntries().map(e=>String(e.studyNumber)));
+    const qs=DATA.filter(q=>dueSet.has(String(q.studyNumber))).sort((a,b)=>{
+      const da=(a.custom?a.card.review?.due:reviewQueue[a.studyNumber]?.dueDate)||'';
+      const db=(b.custom?b.card.review?.due:reviewQueue[b.studyNumber]?.dueDate)||'';
+      return da.localeCompare(db) || (a.displayNumber||a.studyNumber)-(b.displayNumber||b.studyNumber);
     });
     if(!qs.length){ alert('今日または期限超過の未消化問題はありません。待機中の問題は期日になるとここに残り続けます。'); return; }
     startSession(qs,'未消化の復習',null,null,false,'review');
@@ -744,8 +770,48 @@
     $('doubtThemeFilter').appendChild(d);
   });
 
+  // Custom economy cards remain in their existing store; original question IDs never change.
+  const qMedia=document.createElement('div');qMedia.id='customQuestionMedia';$('questionText').after(qMedia);
+  const aMedia=document.createElement('div');aMedia.id='customAnswerMedia';$('officialAnswer').after(aMedia);
+  const editCardButton=document.createElement('button');editCardButton.id='editIntegratedCard';editCardButton.type='button';editCardButton.className='secondary';editCardButton.textContent='この自作問題を編集';editCardButton.hidden=true;
+  $('questionText').before(editCardButton);editCardButton.onclick=()=>{const q=currentQuestion();if(q?.custom)window.KT_CUSTOM.edit(q.card.id);};
+  function renderCustomMedia(q){
+    for(const [box,side] of [[qMedia,'q'],[aMedia,'a']]){
+      box.replaceChildren();if(!q.custom)continue;
+      for(const src of q.card[side+'Images']||[]){
+        const b=document.createElement('button');b.type='button';b.className='kt-custom-image';b.setAttribute('aria-label','画像を拡大');
+        const im=document.createElement('img');im.src=src;im.alt=side==='q'?'問いの画像':'答えの画像';b.append(im);b.onclick=()=>window.KT_CUSTOM.zoom(src);box.append(b);
+      }
+    }
+    if(q.custom){for(const [label,value] of [['間違えた理由',q.card.note],['出典',q.card.source]]){if(!value)continue;const p=document.createElement('p');p.className='kt-custom-note';const b=document.createElement('b');b.textContent=label+'：';p.append(b,document.createTextNode(value));aMedia.append(p);}}
+  }
+  function updateCustomCards(cards){
+    const custom=cards.filter(c=>c.subject==='economy'&&!c.deleted&&!c.draft).sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||'')||a.id.localeCompare(b.id));
+    DATA=[...ORIGINAL,...custom.map((c,i)=>({custom:true,card:c,studyNumber:'custom:'+c.id,displayNumber:ORIGINAL.length+i+1,question:c.question||'画像の問いに答えてください',answer:c.answer,theme:c.theme||c.field||'未分類',level:'custom',levelName:'自作',slides:[]}))];
+    THEMES=[...new Set(DATA.map(q=>q.theme))];
+    const select=$('themeFilter'),prior=select.value;
+    select.replaceChildren(new Option('全テーマ','all'),...THEMES.map(t=>new Option(t,t)));
+    select.value=THEMES.includes(prior)?prior:'all';
+    // Replace the displayed session's cards by ID after edits/sync, dropping removed/draft cards.
+    const before=currentQuestion(),wasRevealed=!$('answerPanel').classList.contains('hidden');
+    const lookup=new Map(DATA.map(q=>[String(q.studyNumber),q]));
+    session=session.map(q=>lookup.get(String(q.studyNumber))).filter(Boolean);
+    if(before){const found=session.findIndex(q=>String(q.studyNumber)===String(before.studyNumber));sessionIndex=found>=0?found:Math.min(sessionIndex,Math.max(0,session.length-1));}
+    renderHome();
+    if($('listView').classList.contains('active'))renderList();
+    if($('progressView').classList.contains('active'))renderProgress();
+    if($('studyView').classList.contains('active') && before?.custom && !ratingBusy && JSON.stringify(before.card)!==JSON.stringify(currentQuestion()?.card)){
+      if(session.length){const same=before.studyNumber===currentQuestion()?.studyNumber,typed=$('answerInput').value;renderQuestion();if(same){$('answerInput').value=typed;if(wasRevealed)reveal();}}else showView('homeView');
+    }
+  }
+  for(const id of ['levelFilter','levelFilterHome'])$(id).append(new Option('自作','custom'));
+  const add=document.createElement('button');add.id='addEconomyCard';add.className='secondary big';add.textContent='＋ 自作問題を追加';add.onclick=()=>window.KT_CUSTOM?.newEconomy();document.querySelector('#homeView .action-grid').append(add);
+  document.querySelector('#progressView .backup-zone p').textContent='公式130問の学習記録と、自作カード（画像・復習履歴）は、それぞれのボタンから保存できます。';
+  $('exportBackupBtn').textContent='公式130問の記録を書き出す';
+  const cb=document.createElement('button');cb.className='secondary';cb.textContent='自作カードを書き出す';cb.onclick=()=>window.KT_CUSTOM?.export();$('exportBackupBtn').after(cb);
   // Shared KT data bridge. Applying cloud state must not generate a new local edit.
   window.KT_BRIDGE={
+    updateCustomCards,
     snapshot:()=>JSON.parse(JSON.stringify({progress,appState,doubts,reviewQueue})),
     apply:(next)=>{
       const before={progress,appState,doubts,reviewQueue};
@@ -773,7 +839,8 @@
   const versionTag=document.createElement('small');versionTag.textContent='v'+APP_VERSION;versionTag.id='ktAppVersion';versionTag.style.cssText='font-size:11px;color:#64748b;margin-left:8px;white-space:nowrap';
   document.querySelector('.appbar h1')?.append(versionTag);
   const heroDescription=document.querySelector('#homeView .hero p');if(heroDescription)heroDescription.textContent='学習順番号と元番号を併記。進捗は端末に保存され、同期設定後はPC・スマホ間で共有できます。';
-  const resetDescription=$('resetBtn')?.closest('.danger-zone')?.querySelector('p');if(resetDescription)resetDescription.textContent='KTの進捗・再開位置・復習キューをリセットします。同期接続済みの場合は他の端末にも反映されます。疑問メモは残ります。';
+  $('resetBtn').textContent='公式130問の進捗をリセット';
+  const resetDescription=$('resetBtn')?.closest('.danger-zone')?.querySelector('p');if(resetDescription)resetDescription.textContent='公式130問の進捗・再開位置・復習キューをリセットします。同期接続済みの場合は他の端末にも反映されます。疑問メモと自作カードの記録は残ります。';
   // PWA install
   window.addEventListener('beforeinstallprompt',e=>{
     e.preventDefault();
@@ -805,7 +872,7 @@
   const known = n => questions.has(String(n));
   const date = x => typeof x === 'string' && !Number.isNaN(Date.parse(x));
   function validate(data) {
-    if (!object(data) || data.format !== 'kt-quiz-backup' || !object(data.progress) || !object(data.appState) || !Array.isArray(data.doubts) || !object(data.reviewQueue)) throw new Error('KTのバックアップJSONを選択してください。数学専用バックアップはここでは読み込めません。');
+    if (!object(data) || data.format !== 'kt-quiz-backup' || !object(data.progress) || !object(data.appState) || !Array.isArray(data.doubts) || !object(data.reviewQueue)) throw new Error('KTのバックアップJSONを選択してください。自作カードのバックアップはここでは読み込めません。');
     for (const [n,p] of Object.entries(data.progress)) if (!known(n) || !object(p) || !['good','meh','bad','unseen'].includes(p.rating) || !Number.isInteger(p.attempts) || p.attempts<0 || !date(p.lastSeen)) throw new Error('学習記録の形式が正しくありません。スマホから書き出し直してください。');
     for (const d of data.doubts) if (!object(d) || !known(d.studyNumber) || typeof d.id!=='string' || typeof d.text!=='string' || !['open','resolved'].includes(d.status)) throw new Error('疑問メモの形式が正しくありません。');
     for (const [n,r] of Object.entries(data.reviewQueue)) if (!known(n) || !object(r) || String(r.studyNumber)!==n || !Number.isInteger(r.stage) || r.stage<0 || r.stage>2 || !/^\d{4}-\d{2}-\d{2}$/.test(r.dueDate) || !date(r.dueDate)) throw new Error('復習キューの形式が正しくありません。');
@@ -817,7 +884,7 @@
     return data;
   }
   function currentBackup() {
-    const result = {format:'kt-quiz-backup', appVersion:'5.3.0', exportedAt:new Date().toISOString(), questionCount:questions.size};
+    const result = {format:'kt-quiz-backup', appVersion:'5.4.0', exportedAt:new Date().toISOString(), questionCount:questions.size};
     for (const [field,key] of Object.entries(keys)) result[field]=JSON.parse(localStorage.getItem(key)|| (field==='doubts'?'[]':'{}'));
     return result;
   }
@@ -838,7 +905,7 @@
       const dialog=document.createElement('dialog');dialog.className='km-crop';dialog.id='ktImportDialog';
       const title=document.createElement('h2');title.textContent='スマホの記録をこの端末へ反映';
       const details=document.createElement('p');details.style.whiteSpace='pre-line';details.textContent=`選択ファイル：${file.name}\n学習済み：${Object.values(data.progress).filter(p=>p.rating!=='unseen').length}問\n疑問メモ：${data.doubts.length}件\n未消化の復習：${Object.keys(data.reviewQueue).length}件\n書き出し日時：${date(data.exportedAt)?new Date(data.exportedAt).toLocaleString('ja-JP'):'不明'}`;
-      const note=document.createElement('p');note.textContent='この端末のKTの進捗・疑問メモ・復習キュー・再開位置を、選択した記録で置き換えます。元の記録は取り込み前バックアップとして端末に保管します。数学カードは変更しません。KT同期に接続済みの場合、この変更は他の端末にも反映されます。';
+      const note=document.createElement('p');note.textContent='この端末のKTの進捗・疑問メモ・復習キュー・再開位置を、選択した記録で置き換えます。元の記録は取り込み前バックアップとして端末に保管します。自作カードは変更しません。KT同期に接続済みの場合、この変更は他の端末にも反映されます。';
       const apply=document.createElement('button');apply.id='confirmKTImportBtn';apply.textContent='この記録を取り込む';
       const cancel=document.createElement('button');cancel.textContent='キャンセル';cancel.style.marginLeft='8px';cancel.onclick=()=>dialog.close();
       const error=document.createElement('p');error.setAttribute('role','alert');
